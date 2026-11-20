@@ -1,36 +1,28 @@
-// make.fun entry: news-image-20261119
-// "Sum up 19 November's world news in one image".
+// news-image-20261119 — v4 entry program.
 //
-// The deliverable is one image: entry.png, a newspaper-style one-pager that
-// sums up the world news of Thursday 19 November 2026. The grader copies the
-// repository into a read-only /bot, runs this program and looks at exactly the
-// bytes written into the output directory, so the job is to hand over the
-// asset untouched.
-//
-// Rules this program obeys:
-//   * the output directory is only created, never removed (the grader mounts
-//     it read-only at its root, so unlinking it fails with EACCES),
-//   * the asset is resolved from import.meta.url, because the grader does not
-//     run the program from the repository root,
-//   * nothing time- or random-dependent runs, so two runs write identical
-//     bytes,
-//   * the bytes are read and written instead of being copied, so a read-only
-//     source asset does not make the output read-only and a second run over
-//     the same output directory still succeeds.
+// A single-file program that writes the finished front page (entry.png,
+// rendered in this repo from page.html) to the grader's output directory.
+// Deterministic: it copies the exact bytes of entry.png, so every run
+// produces the identical file. Node 22, stdlib only, no network.
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const OUTPUT_DIR = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
-const SOURCE_IMAGE = fileURLToPath(new URL('./entry.png', import.meta.url));
-const OUTPUT_IMAGE = join(OUTPUT_DIR, 'entry.png');
+// The image lives next to this program file, wherever the repo is checked out.
+const here = dirname(fileURLToPath(import.meta.url));
+const sourcePath = join(here, "entry.png");
 
-// The image is a fixed asset, so the program is a fixed copy: the same input
-// always produces the same output bytes.
-mkdirSync(OUTPUT_DIR, { recursive: true });
+// The grader sets MAKEFUN_OUTPUT_DIR; fall back to a local out/ for a
+// manual run. We only ever create the directory if it is missing and
+// write one file inside it — we never remove the directory itself.
+const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? join(here, "out");
+mkdirSync(outDir, { recursive: true });
 
-const imageBytes = readFileSync(SOURCE_IMAGE);
-writeFileSync(OUTPUT_IMAGE, imageBytes);
+// Copy the finished front page byte-for-byte. No time, randomness or
+// environment dependence anywhere, so two runs are always identical.
+const image = readFileSync(sourcePath);
+const targetPath = join(outDir, "entry.png");
+writeFileSync(targetPath, image);
 
-console.log(`wrote ${OUTPUT_IMAGE} (${imageBytes.length} bytes)`);
+console.log(`wrote ${targetPath} (${image.length} bytes)`);
